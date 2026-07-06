@@ -1,0 +1,18 @@
+solana_stablecoins:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: '../data/pipeline.duckdb'
+      schema: main
+      threads: 4
+
+    prod:
+      type: postgres
+      host: "{{ env_var('DB_HOST', 'localhost') }}"
+      port: 5432
+      user: "{{ env_var('DB_USER', 'postgres') }}"
+      password: "{{ env_var('DB_PASSWORD') }}"
+      dbname: "{{ env_var('DB_NAME', 'stablecoins') }}"
+      schema: public
+      threads: 4

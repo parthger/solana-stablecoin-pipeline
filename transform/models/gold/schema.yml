@@ -1,0 +1,38 @@
+version: 2
+
+models:
+  - name: daily_stablecoin_flows
+    description: Daily aggregated stablecoin flow metrics
+    columns:
+      - name: date
+        description: Date of the metrics
+        tests:
+          - not_null
+      - name: token_symbol
+        description: Token symbol (USDC, PYUSD)
+        tests:
+          - not_null
+      - name: transfer_count
+        description: Number of transfers
+      - name: transfer_volume
+        description: Total volume transferred
+      - name: unique_senders
+        description: Count of unique sending addresses
+      - name: unique_receivers
+        description: Count of unique receiving addresses
+
+  - name: holder_concentration
+    description: Holder concentration metrics for moat research
+    columns:
+      - name: snapshot_date
+        description: Date of the snapshot
+        tests:
+          - not_null
+      - name: token_symbol
+        description: Token symbol
+        tests:
+          - not_null
+      - name: top_10_pct
+        description: Percentage of supply held by top 10 holders
+      - name: holder_count
+        description: Total number of holders

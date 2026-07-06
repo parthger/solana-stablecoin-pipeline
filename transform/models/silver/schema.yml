@@ -1,0 +1,32 @@
+version: 2
+
+models:
+  - name: stablecoin_transfers
+    description: Decoded stablecoin transfer events
+    columns:
+      - name: transfer_id
+        description: Unique transfer identifier
+        tests:
+          - unique
+          - not_null
+      - name: signature
+        description: Transaction signature
+        tests:
+          - not_null
+      - name: mint
+        description: Token mint address
+        tests:
+          - not_null
+          - accepted_values:
+              values:
+                - 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'  # USDC
+                - '2b1kV6DkPAnxd5ixfnxCpjxmKwqjjaYmCZfHsFu24GXo'  # PYUSD
+      - name: token_symbol
+        description: Human-readable token symbol
+        tests:
+          - accepted_values:
+              values: ['USDC', 'PYUSD']
+      - name: amount_decimal
+        description: Transfer amount in decimal form
+        tests:
+          - not_null

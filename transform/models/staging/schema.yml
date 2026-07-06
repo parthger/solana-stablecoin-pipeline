@@ -1,0 +1,38 @@
+version: 2
+
+sources:
+  - name: bronze
+    description: Raw ingested data from Helius API
+    schema: bronze
+    tables:
+      - name: transactions
+        description: Raw Solana transactions involving stablecoins
+        columns:
+          - name: signature
+            description: Transaction signature (primary key)
+            tests:
+              - unique
+              - not_null
+          - name: slot
+            description: Solana slot number
+          - name: block_time
+            description: Block timestamp
+          - name: fee
+            description: Transaction fee in lamports
+          - name: fee_payer
+            description: Account that paid the fee
+          - name: success
+            description: Whether transaction succeeded
+          - name: token_transfers
+            description: Helius-parsed token transfers (JSON)
+          - name: instructions
+            description: Transaction instructions (JSON)
+
+models:
+  - name: stg_transactions
+    description: Staged transactions filtered to successful only
+    columns:
+      - name: signature
+        tests:
+          - unique
+          - not_null
