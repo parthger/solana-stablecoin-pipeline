@@ -36,3 +36,53 @@ models:
         description: Percentage of supply held by top 10 holders
       - name: holder_count
         description: Total number of holders
+
+  - name: dex_flows
+    description: DEX and protocol flow analysis for stablecoins
+    columns:
+      - name: date
+        description: Date of the metrics
+        tests:
+          - not_null
+      - name: token_symbol
+        description: Token symbol (USDC, PYUSD)
+        tests:
+          - not_null
+      - name: protocol
+        description: DEX or protocol name (Jupiter, Raydium, etc.)
+        tests:
+          - not_null
+      - name: tx_type
+        description: Transaction type (SWAP, TRANSFER, etc.)
+      - name: volume
+        description: Total volume through this protocol
+      - name: volume_share_pct
+        description: Percentage of daily volume through this protocol
+      - name: tx_count
+        description: Number of unique transactions
+      - name: transfer_count
+        description: Number of token transfers
+
+  - name: wallet_analytics
+    description: Wallet classification and analytics with behavioral detection
+    columns:
+      - name: wallet
+        description: Wallet address
+        tests:
+          - not_null
+      - name: token_symbol
+        description: Token symbol
+        tests:
+          - not_null
+      - name: wallet_label
+        description: Human-readable wallet label (Whale, Bot, Retail, etc.)
+      - name: wallet_category
+        description: Category code (whale, bot, retail, cex, dex, etc.)
+      - name: confidence
+        description: Classification confidence (0.0 to 1.0)
+      - name: classification_source
+        description: How the wallet was classified (known or behavior)
+      - name: total_volume
+        description: Total USD volume transacted
+      - name: total_tx_count
+        description: Total number of transactions

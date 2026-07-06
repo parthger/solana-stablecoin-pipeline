@@ -5,52 +5,63 @@
     )
 }}
 
--- Flatten token transfers from staged transactions
+-- Join transactions with token transfers (dlt normalized structure)
 -- This is the silver layer: decoded, typed, enriched
 
-with transfers_unnested as (
+with token_transfers as (
+    select
+        from_token_account,
+        to_token_account,
+        from_user_account,
+        to_user_account,
+        token_amount,
+        mint,
+        _dlt_root_id,
+        _dlt_list_idx
+    from {{ source('bronze', 'transactions__token_transfers') }}
+),
+
+transactions as (
     select
         signature,
         slot,
         block_time,
         fee_payer,
-        -- Unnest the token_transfers JSON array
-        unnest(token_transfers) as transfer
+        _dlt_id
     from {{ ref('stg_transactions') }}
-    where token_transfers is not null
-      and json_array_length(token_transfers) > 0
 ),
 
-parsed_transfers as (
+joined_transfers as (
     select
         -- Generate unique ID
-        md5(signature || '-' || coalesce(transfer->>'fromTokenAccount', '') || '-' || coalesce(transfer->>'toTokenAccount', '') || '-' || coalesce(transfer->>'tokenAmount', '0')) as transfer_id,
+        md5(t.signature || '-' || coalesce(tt.from_token_account, '') || '-' || coalesce(tt.to_token_account, '') || '-' || cast(coalesce(tt.token_amount, 0) as varchar) || '-' || cast(tt._dlt_list_idx as varchar)) as transfer_id,
 
-        signature,
-        slot,
-        block_time,
+        t.signature,
+        t.slot,
+        t.block_time,
 
         -- Token details
-        transfer->>'mint' as mint,
+        tt.mint,
         case
-            when transfer->>'mint' = '{{ var("usdc_mint") }}' then 'USDC'
-            when transfer->>'mint' = '{{ var("pyusd_mint") }}' then 'PYUSD'
+            when tt.mint = '{{ var("usdc_mint") }}' then 'USDC'
+            when tt.mint = '{{ var("pyusd_mint") }}' then 'PYUSD'
             else 'OTHER'
         end as token_symbol,
 
         -- Accounts
-        transfer->>'fromTokenAccount' as source_account,
-        transfer->>'fromUserAccount' as source_owner,
-        transfer->>'toTokenAccount' as destination_account,
-        transfer->>'toUserAccount' as destination_owner,
+        tt.from_token_account as source_account,
+        tt.from_user_account as source_owner,
+        tt.to_token_account as destination_account,
+        tt.to_user_account as destination_owner,
 
         -- Amount
-        cast(transfer->>'tokenAmount' as decimal(38, 18)) as amount_decimal,
-        cast(cast(transfer->>'tokenAmount' as decimal(38, 18)) * 1000000 as bigint) as amount_raw,
+        tt.token_amount as amount_decimal,
+        cast(tt.token_amount * 1000000 as bigint) as amount_raw,
 
-        fee_payer
+        t.fee_payer
 
-    from transfers_unnested
+    from token_transfers tt
+    inner join transactions t on tt._dlt_root_id = t._dlt_id
 )
 
 select
@@ -69,7 +80,7 @@ select
     fee_payer,
     current_timestamp as processed_at
 
-from parsed_transfers
+from joined_transfers
 
 where mint in ('{{ var("usdc_mint") }}', '{{ var("pyusd_mint") }}')
   and amount_decimal > 0

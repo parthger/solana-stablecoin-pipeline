@@ -22,9 +22,10 @@ app = typer.Typer(help="Solana stablecoin pipeline ingestion CLI")
 def backfill(
     days: int = typer.Option(7, help="Number of days to backfill"),
     database_url: str | None = typer.Option(None, help="Database URL override"),
+    max_batches: int = typer.Option(0, help="Max batches per token (0=unlimited)"),
 ):
     """Backfill historical transactions."""
-    asyncio.run(backfill_transactions(days=days, database_url=database_url))
+    asyncio.run(backfill_transactions(days=days, database_url=database_url, max_batches=max_batches))
 
 
 @app.command()

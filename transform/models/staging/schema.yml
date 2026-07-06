@@ -23,10 +23,23 @@ sources:
             description: Account that paid the fee
           - name: success
             description: Whether transaction succeeded
-          - name: token_transfers
-            description: Helius-parsed token transfers (JSON)
-          - name: instructions
-            description: Transaction instructions (JSON)
+      - name: transactions__token_transfers
+        description: Token transfers extracted from transactions (dlt normalized)
+        columns:
+          - name: from_token_account
+            description: Source token account
+          - name: to_token_account
+            description: Destination token account
+          - name: from_user_account
+            description: Source wallet owner
+          - name: to_user_account
+            description: Destination wallet owner
+          - name: token_amount
+            description: Amount transferred
+          - name: mint
+            description: Token mint address
+          - name: _dlt_root_id
+            description: Parent transaction ID
 
 models:
   - name: stg_transactions

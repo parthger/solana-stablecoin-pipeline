@@ -3,7 +3,11 @@
 import asyncio
 from datetime import datetime, timedelta, timezone
 
+import nest_asyncio
 import dlt
+
+# Allow nested event loops (dlt runs its own loop)
+nest_asyncio.apply()
 import structlog
 from dlt.sources.helpers import requests
 
@@ -18,6 +22,7 @@ def solana_stablecoins(
     settings: Settings,
     start_date: datetime | None = None,
     end_date: datetime | None = None,
+    max_batches: int = 0,
 ):
     """DLT source for Solana stablecoin transactions."""
 
@@ -28,7 +33,7 @@ def solana_stablecoins(
     )
     def transactions():
         """Yield stablecoin transactions."""
-        yield from _fetch_transactions_sync(settings, start_date, end_date)
+        yield from _fetch_transactions_sync(settings, start_date, end_date, max_batches)
 
     return transactions
 
@@ -37,15 +42,17 @@ def _fetch_transactions_sync(
     settings: Settings,
     start_date: datetime | None,
     end_date: datetime | None,
+    max_batches: int = 0,
 ) -> list[dict]:
     """Synchronous wrapper for transaction fetching (dlt requirement)."""
-    return asyncio.run(_fetch_transactions(settings, start_date, end_date))
+    return asyncio.run(_fetch_transactions(settings, start_date, end_date, max_batches))
 
 
 async def _fetch_transactions(
     settings: Settings,
     start_date: datetime | None,
     end_date: datetime | None,
+    max_batches: int = 0,  # 0 = unlimited
 ) -> list[dict]:
     """Fetch transactions for all target mints."""
     all_transactions = []
@@ -59,6 +66,10 @@ async def _fetch_transactions(
             batch_count = 0
 
             while True:
+                # Check batch limit
+                if max_batches > 0 and batch_count >= max_batches:
+                    logger.info(f"Reached batch limit of {max_batches}")
+                    break
                 # Fetch batch of transactions
                 txs = await client.get_signatures_for_address(
                     address=mint,
@@ -137,6 +148,7 @@ def _transform_to_bronze(tx: dict, source_mint: str) -> dict:
 async def backfill_transactions(
     days: int = 7,
     database_url: str | None = None,
+    max_batches: int = 0,
 ) -> None:
     """Run backfill for the specified number of days."""
     settings = Settings()
@@ -148,6 +160,7 @@ async def backfill_transactions(
         "Starting backfill",
         start_date=start_date.isoformat(),
         end_date=end_date.isoformat(),
+        max_batches=max_batches if max_batches > 0 else "unlimited",
     )
 
     # Configure dlt pipeline
@@ -158,7 +171,7 @@ async def backfill_transactions(
     )
 
     # Run the pipeline
-    source = solana_stablecoins(settings, start_date, end_date)
+    source = solana_stablecoins(settings, start_date, end_date, max_batches)
     info = pipeline.run(source)
 
     logger.info("Backfill complete", info=str(info))

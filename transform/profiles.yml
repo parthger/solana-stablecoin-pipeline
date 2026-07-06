@@ -3,7 +3,7 @@ solana_stablecoins:
   outputs:
     dev:
       type: duckdb
-      path: '../data/pipeline.duckdb'
+      path: '../solana_stablecoins.duckdb'
       schema: main
       threads: 4
 

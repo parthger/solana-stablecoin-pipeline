@@ -17,12 +17,9 @@ select
     source,
     type,
     description,
-    token_transfers,
-    native_transfers,
-    account_data,
-    instructions,
     source_mint,
-    ingested_at
+    ingested_at,
+    _dlt_id
 
 from {{ source('bronze', 'transactions') }}
 
