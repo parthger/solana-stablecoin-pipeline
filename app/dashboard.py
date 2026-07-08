@@ -8,9 +8,14 @@ import duckdb
 from pathlib import Path
 import os
 import sys
+from dotenv import load_dotenv
 
 # Add project root to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
+
+# Load environment variables from .env file
+env_path = Path(__file__).parent.parent / ".env"
+load_dotenv(env_path)
 
 # Check if AI features are available
 GEMINI_AVAILABLE = bool(os.getenv("GEMINI_API_KEY"))
