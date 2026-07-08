@@ -6,6 +6,14 @@ import plotly.express as px
 import plotly.graph_objects as go
 import duckdb
 from pathlib import Path
+import os
+import sys
+
+# Add project root to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+# Check if AI features are available
+AI_AVAILABLE = bool(os.getenv("ANTHROPIC_API_KEY"))
 
 # Page config
 st.set_page_config(
@@ -152,6 +160,16 @@ token_filter = st.sidebar.multiselect(
     default=["USDC", "PYUSD"],
 )
 
+# AI Features toggle
+st.sidebar.header("AI Features")
+if AI_AVAILABLE:
+    enable_ai = st.sidebar.checkbox("Enable AI Insights", value=True)
+    if enable_ai:
+        st.sidebar.success("Claude AI enabled")
+else:
+    st.sidebar.warning("Set ANTHROPIC_API_KEY to enable AI features")
+    enable_ai = False
+
 # Load data
 daily_flows = load_daily_flows()
 holder_data = load_holder_concentration()
@@ -211,6 +229,67 @@ if not daily_flows.empty:
             "Unique Receivers",
             f"{latest.get('unique_receivers', 0):,}",
         )
+
+# AI Insights Section
+if enable_ai and AI_AVAILABLE:
+    st.subheader("🤖 AI-Powered Insights")
+
+    ai_tab1, ai_tab2, ai_tab3 = st.tabs(["Daily Summary", "Anomaly Detection", "Ask AI"])
+
+    with ai_tab1:
+        if st.button("Generate Daily Summary", key="gen_summary"):
+            with st.spinner("Claude is analyzing the data..."):
+                try:
+                    from src.ai.insights import generate_daily_summary
+                    summary = generate_daily_summary(daily_flows, dex_flows, wallet_analytics)
+                    st.markdown(summary)
+                except Exception as e:
+                    st.error(f"Error generating summary: {e}")
+        else:
+            st.info("Click the button to generate an AI summary of today's stablecoin activity.")
+
+    with ai_tab2:
+        if st.button("Detect Anomalies", key="detect_anomalies"):
+            with st.spinner("Scanning for anomalies..."):
+                try:
+                    from src.ai.insights import detect_anomalies, generate_alerts
+                    anomalies = detect_anomalies(daily_flows)
+                    alerts = generate_alerts(daily_flows, wallet_analytics)
+
+                    if anomalies:
+                        st.warning(f"Found {len(anomalies)} anomalies")
+                        for a in anomalies:
+                            severity_color = {"high": "🔴", "medium": "🟡", "low": "🟢"}.get(a.get("severity", "low"), "⚪")
+                            st.markdown(f"{severity_color} **{a.get('type', 'Unknown')}**: {a.get('explanation', 'No details')}")
+                    else:
+                        st.success("No anomalies detected")
+
+                    if alerts:
+                        st.markdown("---")
+                        st.markdown("**Smart Alerts:**")
+                        for alert in alerts:
+                            severity_icon = {"high": "🚨", "medium": "⚠️", "low": "ℹ️"}.get(alert.get("severity", "low"), "📌")
+                            with st.expander(f"{severity_icon} {alert.get('title', 'Alert')}"):
+                                st.write(alert.get("description", ""))
+                                st.caption(f"Recommendation: {alert.get('recommendation', 'N/A')}")
+                except Exception as e:
+                    st.error(f"Error detecting anomalies: {e}")
+        else:
+            st.info("Click to scan for unusual patterns in the data.")
+
+    with ai_tab3:
+        user_question = st.text_input(
+            "Ask a question about the data:",
+            placeholder="e.g., Which protocol has the highest volume today?"
+        )
+        if user_question:
+            with st.spinner("Thinking..."):
+                try:
+                    from src.ai.insights import answer_question
+                    answer = answer_question(user_question, daily_flows, dex_flows, wallet_analytics)
+                    st.markdown(answer)
+                except Exception as e:
+                    st.error(f"Error answering question: {e}")
 
 # Charts
 st.subheader("Daily Transfer Volume")
