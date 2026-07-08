@@ -35,6 +35,7 @@ dashboard = [
 ]
 ai = [
     "anthropic>=0.30.0",
+    "google-genai>=1.0.0",
 ]
 streaming = [
     "grpcio>=1.60.0",

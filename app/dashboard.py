@@ -13,7 +13,12 @@ import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 # Check if AI features are available
-AI_AVAILABLE = bool(os.getenv("ANTHROPIC_API_KEY"))
+GEMINI_AVAILABLE = bool(os.getenv("GEMINI_API_KEY"))
+CLAUDE_AVAILABLE = bool(os.getenv("ANTHROPIC_API_KEY"))
+AI_AVAILABLE = GEMINI_AVAILABLE or CLAUDE_AVAILABLE
+
+# Default to Gemini if available, otherwise Claude
+DEFAULT_AI_PROVIDER = "Gemini" if GEMINI_AVAILABLE else "Claude" if CLAUDE_AVAILABLE else None
 
 # Page config
 st.set_page_config(
@@ -165,10 +170,25 @@ st.sidebar.header("AI Features")
 if AI_AVAILABLE:
     enable_ai = st.sidebar.checkbox("Enable AI Insights", value=True)
     if enable_ai:
-        st.sidebar.success("Claude AI enabled")
+        # Provider selection
+        available_providers = []
+        if GEMINI_AVAILABLE:
+            available_providers.append("Gemini")
+        if CLAUDE_AVAILABLE:
+            available_providers.append("Claude")
+
+        ai_provider = st.sidebar.selectbox(
+            "AI Provider",
+            options=available_providers,
+            index=0,
+        )
+        st.sidebar.success(f"{ai_provider} AI enabled")
+    else:
+        ai_provider = None
 else:
-    st.sidebar.warning("Set ANTHROPIC_API_KEY to enable AI features")
+    st.sidebar.warning("Set GEMINI_API_KEY or ANTHROPIC_API_KEY to enable AI")
     enable_ai = False
+    ai_provider = None
 
 # Load data
 daily_flows = load_daily_flows()
@@ -232,16 +252,21 @@ if not daily_flows.empty:
 
 # AI Insights Section
 if enable_ai and AI_AVAILABLE:
-    st.subheader("🤖 AI-Powered Insights")
+    st.subheader(f"🤖 AI-Powered Insights ({ai_provider})")
 
-    ai_tab1, ai_tab2, ai_tab3 = st.tabs(["Daily Summary", "Anomaly Detection", "Ask AI"])
+    ai_tab1, ai_tab2, ai_tab3, ai_tab4 = st.tabs(["Daily Summary", "Anomaly Detection", "Ask AI", "Market Prediction"])
+
+    # Import the correct AI module based on provider
+    if ai_provider == "Gemini":
+        from src.ai import gemini_insights as ai_module
+    else:
+        from src.ai import insights as ai_module
 
     with ai_tab1:
         if st.button("Generate Daily Summary", key="gen_summary"):
-            with st.spinner("Claude is analyzing the data..."):
+            with st.spinner(f"{ai_provider} is analyzing the data..."):
                 try:
-                    from src.ai.insights import generate_daily_summary
-                    summary = generate_daily_summary(daily_flows, dex_flows, wallet_analytics)
+                    summary = ai_module.generate_daily_summary(daily_flows, dex_flows, wallet_analytics)
                     st.markdown(summary)
                 except Exception as e:
                     st.error(f"Error generating summary: {e}")
@@ -252,9 +277,8 @@ if enable_ai and AI_AVAILABLE:
         if st.button("Detect Anomalies", key="detect_anomalies"):
             with st.spinner("Scanning for anomalies..."):
                 try:
-                    from src.ai.insights import detect_anomalies, generate_alerts
-                    anomalies = detect_anomalies(daily_flows)
-                    alerts = generate_alerts(daily_flows, wallet_analytics)
+                    anomalies = ai_module.detect_anomalies(daily_flows)
+                    alerts = ai_module.generate_alerts(daily_flows, wallet_analytics)
 
                     if anomalies:
                         st.warning(f"Found {len(anomalies)} anomalies")
@@ -285,11 +309,44 @@ if enable_ai and AI_AVAILABLE:
         if user_question:
             with st.spinner("Thinking..."):
                 try:
-                    from src.ai.insights import answer_question
-                    answer = answer_question(user_question, daily_flows, dex_flows, wallet_analytics)
+                    answer = ai_module.answer_question(user_question, daily_flows, dex_flows, wallet_analytics)
                     st.markdown(answer)
                 except Exception as e:
                     st.error(f"Error answering question: {e}")
+
+    with ai_tab4:
+        st.markdown("**Short-term Market Outlook**")
+        if st.button("Generate Prediction", key="gen_prediction"):
+            with st.spinner(f"{ai_provider} is analyzing trends..."):
+                try:
+                    # Only Gemini has the prediction feature
+                    if ai_provider == "Gemini":
+                        prediction = ai_module.generate_market_prediction(daily_flows, dex_flows)
+                    else:
+                        prediction = {"trend": "N/A", "confidence": 0, "reasoning": "Use Gemini for predictions"}
+
+                    trend_icon = {"up": "📈", "down": "📉", "stable": "➡️"}.get(prediction.get("trend", ""), "❓")
+
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.metric("Expected Trend", f"{trend_icon} {prediction.get('trend', 'Unknown').upper()}")
+                    with col2:
+                        confidence = prediction.get("confidence", 0)
+                        st.metric("Confidence", f"{confidence:.0%}")
+
+                    st.markdown("**Key Factors:**")
+                    factors = prediction.get("factors", [])
+                    for factor in factors:
+                        st.markdown(f"- {factor}")
+
+                    st.markdown("**Reasoning:**")
+                    st.info(prediction.get("reasoning", "No reasoning provided"))
+
+                except Exception as e:
+                    st.error(f"Error generating prediction: {e}")
+        else:
+            st.info("Click to get AI-powered market predictions based on current trends.")
+            st.caption("⚠️ This is not financial advice. Use for informational purposes only.")
 
 # Charts
 st.subheader("Daily Transfer Volume")
